@@ -1,0 +1,10 @@
+name = "GraphiC"
+uuid = "e8c69134-8c88-4c3e-9bf4-e2b26090c29f"
+authors = ["James A. Rome <jamesrome@gmail.com>"]
+version = "7.3.0"
+
+[deps]
+Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+
+[compat]
+julia = "1.6"

@@ -1,0 +1,43 @@
+GraphiC License Agreement
+
+PLEASE READ THE FOLLOWING TERMS AND CONDITIONS BEFORE INSTALLING OR USING THIS SOFTWARE. INSTALLING, COPYING, OR USING THIS SOFTWARE INDICATES YOUR ACCEPTANCE OF THESE TERMS AND CONDITIONS. IF YOU DO NOT AGREE TO THEM, DO NOT USE THIS SOFTWARE.
+
+Scientific Endeavors Corporation provides this program and licenses its use in the United States and Puerto Rico and those countries that are signatories of the International Copyright Agreement. You assume responsibility for the selection of the program to achieve your intended results and for the installation, use, and results obtained from the program.
+
+LICENSE
+
+You may:
+1. Use the program on any machine or machines in your possession, but on no more than one machine at any given time;
+2. Copy the program into any machine-readable or printed form for backup or modification purposes in support of the use of the program;
+3. Modify the program or merge it into another program for your personal use (Any portion of this program merged into another program will continue to be subject to the terms and conditions of this agreement.); and
+4. Transfer the program and license to another party if the other party agrees to accept the terms and conditions of this agreement. If you transfer the program, you must at the same time either transfer all copies whether in printed or machine-readable form to the same party or destroy any copies not transferred; this includes all modifications and portions of the program contained or merged into other programs.
+
+THE GraphiC SOURCE CODE IS PROVIDED FOR YOUR PERSONAL USE. IF YOU WISH TO USE THIS CODE IN PROGRAMS FOR USE BY OTHERS, IT WILL BE NECESSARY TO EXECUTE AN ADDITIONAL LICENSING AGREEMENT WITH SCIENTIFIC ENDEAVORS CORPORATION. THIS MEANS THAT GraphiC SOURCE CODE, OBJECT MODULES, AND EXECUTABLES WHICH INCLUDE GraphiC CODE MAY NOT BE GIVEN, SOLD, TRANSFERRED, OR OTHERWISE CONVEYED TO OTHER PERSONS OR PARTIES WITHOUT AN OEM REDISTRIBUTION LICENSE.
+
+You must reproduce and include the copyright notices on any copy, modification, or portion merged into another program.
+
+YOU MAY NOT USE, COPY, MODIFY, OR TRANSFER THE PROGRAM OR ANY COPY, MODIFICATION, OR MERGED PORTION, IN WHOLE OR IN PART, EXCEPT AS EXPRESSLY PROVIDED FOR IN THIS LICENSE.
+
+IF YOU TRANSFER POSSESSION OF ANY COPY, MODIFICATION, OR MERGED PORTION OF THE PROGRAM TO ANOTHER PARTY, YOUR LICENSE IS AUTOMATICALLY TERMINATED.
+
+TERM
+
+The license is effective until terminated. You may terminate it at any other time by destroying the program together with all copies, modifications, and merged portions in any form. It will also terminate if you fail to comply with any term or condition of this agreement. You agree upon such termination to destroy the program together with all copies, modifications, and merged portions in any form.
+
+GENERAL
+
+You may not sublicense, assign, or transfer the license or the program except as expressly provided in this agreement. Any attempts otherwise to sublicense, assign, or transfer any rights, duties, or obligations hereunder are void.
+
+This Agreement is governed by the laws of the State of Tennessee.
+
+LIMITED WARRANTY
+
+Scientific Endeavors Corporation warrants that the software will perform substantially in accordance with the user manual. Since GraphiC is a collection of programming tools, the performance of the package will be, to a large extent, dependent upon the skills of the user.
+
+Scientific Endeavors Corporation shall not in any case be liable for special, incidental, consequential, indirect, or other similar damages arising from any breach of these warranties even if Scientific Endeavors Corporation or its agent has been advised of the possibility of such damages.
+
+LIMITATIONS OF REMEDIES
+
+In no case shall Scientific Endeavors Corporation's liability exceed the amount of the license fees paid for the right to use the computer program.
+
+YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT, UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS. YOU FURTHER AGREE THAT IT IS THE COMPLETE AND EXCLUSIVE AGREEMENT BETWEEN US WHICH SUPERSEDES ANY OTHER PROPOSAL OR PRIOR AGREEMENT, ORAL OR WRITTEN, AND ANY OTHER COMMUNICATIONS BETWEEN US RELATING TO THE SUBJECT MATTER OF THIS AGREEMENT.

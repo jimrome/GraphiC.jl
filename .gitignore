@@ -1,0 +1,6 @@
+# Julia
+Manifest.toml
+*.svg
+*.html
+*.tkf
+.DS_Store
