@@ -532,16 +532,28 @@ function loglog(x1::Real, x2::Real, y1::Real, y2::Real)
     ccall(fn_ptr, Cvoid, (Cfloat, Cfloat, Cfloat, Cfloat), Cfloat(x1), Cfloat(x2), Cfloat(y1), Cfloat(y2))
 end
 
-"""Configure semi-log X axes."""
-function semilogx(x1::Real, x2::Real, y1::Real, y2::Real)
-    fn_ptr = Libdl.dlsym(_get_handle(), :semilogx)
-    ccall(fn_ptr, Cvoid, (Cfloat, Cfloat, Cfloat, Cfloat), Cfloat(x1), Cfloat(x2), Cfloat(y1), Cfloat(y2))
+"""Configure logarithmic X axis and linear Y axis (GraphiC procedural xlog)."""
+function xlog(xorig::Real, xmax::Real, yfmt::AbstractString, yorig::Real, ystep::Real, ymax::Real)
+    fn_ptr = Libdl.dlsym(_get_handle(), :xlog)
+    ccall(fn_ptr, Cvoid, (Cfloat, Cfloat, Cstring, Cfloat, Cfloat, Cfloat),
+          Cfloat(xorig), Cfloat(xmax), string(yfmt), Cfloat(yorig), Cfloat(ystep), Cfloat(ymax))
 end
 
-"""Configure semi-log Y axes."""
-function semilogy(x1::Real, x2::Real, y1::Real, y2::Real)
-    fn_ptr = Libdl.dlsym(_get_handle(), :semilogy)
-    ccall(fn_ptr, Cvoid, (Cfloat, Cfloat, Cfloat, Cfloat), Cfloat(x1), Cfloat(x2), Cfloat(y1), Cfloat(y2))
+"""Configure linear X axis and logarithmic Y axis (GraphiC procedural ylog)."""
+function ylog(xfmt::AbstractString, xorig::Real, xstep::Real, xmax::Real, yorig::Real, ymax::Real)
+    fn_ptr = Libdl.dlsym(_get_handle(), :ylog)
+    ccall(fn_ptr, Cvoid, (Cstring, Cfloat, Cfloat, Cfloat, Cfloat, Cfloat),
+          string(xfmt), Cfloat(xorig), Cfloat(xstep), Cfloat(xmax), Cfloat(yorig), Cfloat(ymax))
+end
+
+"""Configure semi-log X axes (convenience wrapper around xlog)."""
+function semilogx(x1::Real, x2::Real, y1::Real, y2::Real; ystep::Real=(y2 - y1)/5.0, yfmt::AbstractString="%-1.1f")
+    xlog(x1, x2, yfmt, y1, ystep, y2)
+end
+
+"""Configure semi-log Y axes (convenience wrapper around ylog)."""
+function semilogy(x1::Real, x2::Real, y1::Real, y2::Real; xstep::Real=(x2 - x1)/5.0, xfmt::AbstractString="%-1.1f")
+    ylog(xfmt, x1, xstep, x2, y1, y2)
 end
 
 # Drawing Primitives
@@ -807,6 +819,7 @@ function box_plot(x::Real, y::AbstractVector{<:Real}, outlier::Integer=1, symnum
           Cfloat(x), fy, Cint(length(fy)), Cint(outlier), Cint(symnum), Cfloat(width))
 end
 const BoxPlot = box_plot
+const boxplot = box_plot
 
 """
     bar(x, y; nxdiv=5, bwid=0.8, mode=0, colors=nothing, patterns=nothing)
@@ -1220,6 +1233,473 @@ function contour_plot(z::AbstractMatrix{<:Real};
     end
 
     return PlotOutput(CURRENT_OUTPUT[])
+end
+
+
+
+# ==============================================================================
+# Procedural Reference API Bindings
+# ==============================================================================
+function tickht(height::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :tickht)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat,), Cfloat(height)); end
+end
+
+function titlht(height::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :titlht)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat,), Cfloat(height)); end
+end
+
+function axnamht(height::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :axnamht)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat,), Cfloat(height)); end
+end
+
+function tickout(is_out::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :tickout)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(is_out)); end
+end
+
+function upright(uplab::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :upright)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(uplab)); end
+end
+
+function simuplot(numplots::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :simuplot)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(numplots)); end
+end
+
+function context(plot_number::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :context)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(plot_number)); end
+end
+
+function plotabsolute(set_flag::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :plotabsolute)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(set_flag)); end
+end
+
+function plotadd()
+    ptr = Libdl.dlsym_e(_get_handle(), :plotadd)
+    if ptr != C_NULL; ccall(ptr, Cvoid, ()); end
+end
+
+function pgshift(xshift::Real, yshift::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :pgshift)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat), Cfloat(xshift), Cfloat(yshift)); end
+end
+
+function rotate(isrot::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :rotate)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cchar,), Cchar(isrot)); end
+end
+
+function stack(stacked::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :stack)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(stacked)); end
+end
+
+function sclfix(isfixed::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :sclfix)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(isfixed)); end
+end
+
+function axesoff(noaxes::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :axesoff)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(noaxes)); end
+end
+
+function frame(frameon::Integer, ftick::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :frame)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint, Cint), Cint(frameon), Cint(ftick)); end
+end
+
+function acrop(flag::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :acrop)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(flag)); end
+end
+
+function blank(attr::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :blank)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cuchar,), Cuchar(attr)); end
+end
+
+function dateit(font_idx::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :dateit)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(font_idx)); end
+end
+
+function settolerance(tol::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :settolerance)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat,), Cfloat(tol)); end
+end
+
+function xlab(on_off::Integer, strlab=nothing)
+    ptr = Libdl.dlsym_e(_get_handle(), :xlab)
+    if ptr != C_NULL
+        if on_off == 0 || strlab === nothing || isempty(strlab)
+            ccall(ptr, Cvoid, (Cchar, Ptr{Ptr{Cchar}}), Cchar(on_off), C_NULL)
+        else
+            ptrs = [Base.unsafe_convert(Cstring, s) for s in strlab]
+            push!(ptrs, C_NULL)
+            ccall(ptr, Cvoid, (Cchar, Ptr{Cstring}), Cchar(on_off), ptrs)
+        end
+    end
+end
+
+function ylab(on_off::Integer, strlab=nothing)
+    ptr = Libdl.dlsym_e(_get_handle(), :ylab)
+    if ptr != C_NULL
+        if on_off == 0 || strlab === nothing || isempty(strlab)
+            ccall(ptr, Cvoid, (Cchar, Ptr{Ptr{Cchar}}), Cchar(on_off), C_NULL)
+        else
+            ptrs = [Base.unsafe_convert(Cstring, s) for s in strlab]
+            push!(ptrs, C_NULL)
+            ccall(ptr, Cvoid, (Cchar, Ptr{Cstring}), Cchar(on_off), ptrs)
+        end
+    end
+end
+
+function smove(dell::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :smove)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat,), Cfloat(dell)); end
+end
+
+
+function plotrho(rho::Real, theta::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :plotrho)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat), Cfloat(rho), Cfloat(theta)); end
+end
+
+function smithcir(u::Real, v::Real, radius::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :smithcir)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat, Cfloat), Cfloat(u), Cfloat(v), Cfloat(radius)); end
+end
+
+
+
+
+function lconmat(zmat::AbstractMatrix{<:Real}, x::AbstractVector{<:Real}, nx::Integer,
+                 y::AbstractVector{<:Real}, ny::Integer, level::AbstractVector{<:Real},
+                 lnstyle::AbstractVector{<:Integer}, nlevel::Integer, labint::Integer, formt::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :lconmat)
+    if ptr != C_NULL
+        zf = Float32.(zmat)
+        xf = Float32.(x)
+        yf = Float32.(y)
+        lf = Float32.(level)
+        ls = Int32.(lnstyle)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Cint, Ptr{Cfloat}, Cint, Ptr{Cfloat}, Ptr{Cint}, Cint, Cint, Cstring),
+              zf, xf, Cint(nx), yf, Cint(ny), lf, ls, Cint(nlevel), Cint(labint), String(formt))
+    end
+end
+
+function contcolor(colors::AbstractVector{<:Integer}, border::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :contcolor)
+    if ptr != C_NULL
+        cs = Int32.(colors)
+        ccall(ptr, Cvoid, (Ptr{Cint}, Cint), cs, Cint(border))
+    end
+end
+
+function ColorKeyL(minv::Real, maxv::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :ColorKeyL)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat), Cfloat(minv), Cfloat(maxv)); end
+end
+
+function ColorKeyGradient(minv::Real, maxv::Real, colormap_id::Integer,
+                          legllx::Real, leglly::Real, legurx::Real, legury::Real,
+                          nticks::Integer, format::AbstractString, fontc::Union{Char,Integer},
+                          height::Real, angle::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :ColorKeyGradient)
+    if ptr != C_NULL
+        fc = fontc isa Char ? Int(UInt8(fontc)) : Int(fontc)
+        ccall(ptr, Cvoid,
+              (Cfloat, Cfloat, Cint, Cfloat, Cfloat, Cfloat, Cfloat, Cint, Cstring, Cchar, Cfloat, Cint),
+              Cfloat(minv), Cfloat(maxv), Cint(colormap_id),
+              Cfloat(legllx), Cfloat(leglly), Cfloat(legurx), Cfloat(legury),
+              Cint(nticks), String(format), Cchar(fc), Cfloat(height), Cint(angle))
+    end
+end
+
+function trimat()
+    ptr = Libdl.dlsym_e(_get_handle(), :trimat)
+    if ptr != C_NULL; ccall(ptr, Cvoid, ()); end
+end
+
+function aname(l::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :aname)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring,), String(l)); end
+end
+
+function bname(l::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :bname)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring,), String(l)); end
+end
+
+function cname(l::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :cname)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring,), String(l)); end
+end
+
+function vuangl(phi::Real, theta::Real, radius::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :vuangl)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat, Cfloat), Cfloat(phi), Cfloat(theta), Cfloat(radius)); end
+end
+
+function view(a::Real, b::Real, c::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :view)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat, Cfloat), Cfloat(a), Cfloat(b), Cfloat(c)); end
+end
+
+function nohide(vis::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :nohide)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(vis)); end
+end
+
+function d3head(t::AbstractString, place::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :d3head)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring, Cint), String(t), Cint(place)); end
+end
+
+function d3line(xf::Real, yf::Real, zf::Real, xt::Real, yt::Real, zt::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :d3line)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat, Cfloat, Cfloat, Cfloat, Cfloat), Cfloat(xf), Cfloat(yf), Cfloat(zf), Cfloat(xt), Cfloat(yt), Cfloat(zt)); end
+end
+
+function d3bars(bwid::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :d3bars)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat,), Cfloat(bwid)); end
+end
+
+function box3d()
+    ptr = Libdl.dlsym_e(_get_handle(), :box3d)
+    if ptr != C_NULL; ccall(ptr, Cvoid, ()); end
+end
+
+function x3name(name::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :x3name)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring,), String(name)); end
+end
+
+function y3name(name::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :y3name)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring,), String(name)); end
+end
+
+function d3color(array::AbstractVector{<:Integer}, nlevels::Integer, mesh::Union{Char,Integer})
+    ptr = Libdl.dlsym_e(_get_handle(), :d3color)
+    if ptr != C_NULL
+        arr = Int32.(array)
+        m = mesh isa Char ? Int(UInt8(mesh)) : Int(mesh)
+        ccall(ptr, Cvoid, (Ptr{Cint}, Cint, Cchar), arr, Cint(nlevels), Cchar(m))
+    end
+end
+
+function surmat2(zmat::AbstractMatrix{<:Real}, xdim::Integer, ydim::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :surmat2)
+    if ptr != C_NULL
+        zf = Float32.(zmat)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Cint, Cint), zf, Cint(xdim), Cint(ydim))
+    end
+end
+
+function WaterfallCurve(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}, z::Real, npts::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :WaterfallCurve)
+    if ptr != C_NULL
+        xf = Float32.(x)
+        yf = Float32.(y)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Cfloat, Cint), xf, yf, Cfloat(z), Cint(npts))
+    end
+end
+
+function WaterfallPlot(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}, z::AbstractMatrix{<:Real}, nx::Integer, ny::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :WaterfallPlot)
+    if ptr != C_NULL
+        xf = Float32.(x)
+        yf = Float32.(y)
+        zf = Float32.(z)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Ptr{Cfloat}, Cint, Cint), xf, yf, zf, Cint(nx), Cint(ny))
+    end
+end
+const waterfall_plot = WaterfallPlot
+
+function BoxPlot(x::Real, y::AbstractVector{<:Real}, ydim::Integer, outlier::Integer, symnum::Integer, width::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :BoxPlot)
+    if ptr != C_NULL
+        yf = Float32.(y)
+        ccall(ptr, Cvoid, (Cfloat, Ptr{Cfloat}, Cint, Cint, Cint, Cfloat),
+              Cfloat(x), yf, Cint(ydim), Cint(outlier), Cint(symnum), Cfloat(width))
+    end
+end
+
+function barchart(nbars::Integer, xarray::AbstractVector{<:Real}, yarray::AbstractVector{<:Real},
+                  npts::Integer, width::Real, carray::AbstractVector{<:Integer}, typearray::AbstractVector{<:Integer})
+    ptr = Libdl.dlsym_e(_get_handle(), :bar)
+    if ptr != C_NULL
+        xf = Float32.(xarray)
+        yf = Float32.(yarray)
+        carr = Int32.(carray)
+        tarr = Int32.(typearray)
+        ccall(ptr, Cvoid, (Cint, Ptr{Cfloat}, Ptr{Cfloat}, Cint, Cfloat, Cint, Ptr{Cint}, Ptr{Cint}),
+              Cint(nbars), xf, yf, Cint(npts), Cfloat(width), Cint(0), carr, tarr)
+    end
+end
+
+function histogram(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}, npts::Integer, type::Integer, colors::AbstractVector{<:Integer})
+    ptr = Libdl.dlsym_e(_get_handle(), :histogram)
+    if ptr != C_NULL
+        xf = Float32.(x)
+        yf = Float32.(y)
+        carr = Int32.(colors)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Cint, Cint, Ptr{Cint}),
+              xf, yf, Cint(npts), Cint(type), carr)
+    end
+end
+
+function pieplot(dim::Integer, seg::AbstractVector{<:Real}, color::AbstractVector{<:Integer},
+                 offset::AbstractVector{<:Real}, caption, size::Real, border::Integer, txtclr::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :pieplot)
+    if ptr != C_NULL
+        sf = Float32.(seg)
+        cf = Int32.(color)
+        of = Float32.(offset)
+        ptrs = [Base.unsafe_convert(Cstring, s) for s in caption]
+        ccall(ptr, Cvoid, (Cint, Ptr{Cfloat}, Ptr{Cint}, Ptr{Cfloat}, Ptr{Cstring}, Cfloat, Cint, Cint),
+              Cint(dim), sf, cf, of, ptrs, Cfloat(size), Cint(border), Cint(txtclr))
+    end
+end
+
+function erfscales(nydiv::Integer, y::AbstractVector{<:Real}, npts::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :erfscales)
+    if ptr != C_NULL
+        yf = Float32.(y)
+        ccall(ptr, Cvoid, (Cint, Ptr{Cfloat}, Cint), Cint(nydiv), yf, Cint(npts))
+    end
+end
+
+function erfcurve(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}, npts::Integer, sym::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :erfcurve)
+    if ptr != C_NULL
+        xf = Float32.(x)
+        yf = Float32.(y)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Cint, Cint), xf, yf, Cint(npts), Cint(sym))
+    end
+end
+
+function erfgrid(ymin::Real, ystep::Real, ymax::Real, yformat::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :erfgrid)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cfloat, Cfloat, Cstring), Cfloat(ymin), Cfloat(ystep), Cfloat(ymax), String(yformat)); end
+end
+
+function tcurve(width::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :tcurve)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(width)); end
+end
+
+function tline(width::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :tline)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(width)); end
+end
+
+function tifont(wid::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :tifont)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat,), Cfloat(wid)); end
+end
+
+function tfont(wid::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :tfont)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cint,), Cint(wid)); end
+end
+
+function SetTTKerning(onoff::Integer, str::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :SetTTKerning)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cchar, Cchar), Cchar(onoff), Cchar(str)); end
+end
+
+function SetTTFull(onoff::Integer, str::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :SetTTFull)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cchar, Cchar), Cchar(onoff), Cchar(str)); end
+end
+
+function SetTTMaxError(err::Real, str::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :SetTTMaxError)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cfloat, Cchar), Cfloat(err), Cchar(str)); end
+end
+
+function ctline(str::AbstractString, h::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :ctline)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring, Cfloat), String(str), Cfloat(h)); end
+end
+
+function ltline(str::AbstractString, h::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :ltline)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring, Cfloat), String(str), Cfloat(h)); end
+end
+
+function rtline(str::AbstractString, h::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :rtline)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring, Cfloat), String(str), Cfloat(h)); end
+end
+
+function strwidth(str::AbstractString, h::Real)
+    ptr = Libdl.dlsym_e(_get_handle(), :strwidth)
+    if ptr != C_NULL; return ccall(ptr, Cfloat, (Cstring, Cfloat), String(str), Cfloat(h)); end
+    return Float32(0.0)
+end
+
+function supsym(ch::Union{Char,Integer})
+    ptr = Libdl.dlsym_e(_get_handle(), :supsym)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cchar,), Cchar(ch isa Char ? UInt8(ch) : ch)); end
+end
+
+function subsym(ch::Union{Char,Integer})
+    ptr = Libdl.dlsym_e(_get_handle(), :subsym)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cchar,), Cchar(ch isa Char ? UInt8(ch) : ch)); end
+end
+
+function RGBcolor(r::Integer, g::Integer, b::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :RGBcolor)
+    if ptr != C_NULL; return ccall(ptr, Cint, (Cint, Cint, Cint), Cint(r), Cint(g), Cint(b)); end
+    return 0
+end
+const gpc_rgb = RGBcolor
+
+function panel(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}, nlines::Integer, pcolor::Integer, border::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :panel)
+    if ptr != C_NULL
+        xf = Float32.(x)
+        yf = Float32.(y)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Cint, Cint, Cint), xf, yf, Cint(nlines), Cint(pcolor), Cint(border))
+    end
+end
+
+function panelinch(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}, nlines::Integer, pcolor::Integer, border::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :panelinch)
+    if ptr != C_NULL
+        xf = Float32.(x)
+        yf = Float32.(y)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Cint, Cint, Cint), xf, yf, Cint(nlines), Cint(pcolor), Cint(border))
+    end
+end
+
+function curvfill(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}, npts::Integer,
+                  x1::AbstractVector{<:Real}, y1::AbstractVector{<:Real}, npts1::Integer, pcolor::Integer, curv::Integer)
+    ptr = Libdl.dlsym_e(_get_handle(), :curvfill)
+    if ptr != C_NULL
+        xf = Float32.(x)
+        yf = Float32.(y)
+        x1f = Float32.(x1)
+        y1f = Float32.(y1)
+        ccall(ptr, Cvoid, (Ptr{Cfloat}, Ptr{Cfloat}, Cint, Ptr{Cfloat}, Ptr{Cfloat}, Cint, Cint, Cint),
+              xf, yf, Cint(npts), x1f, y1f, Cint(npts1), Cint(pcolor), Cint(curv))
+    end
+end
+
+function NewFile(name::AbstractString)
+    ptr = Libdl.dlsym_e(_get_handle(), :NewFile)
+    if ptr != C_NULL; ccall(ptr, Cvoid, (Cstring,), String(name)); end
 end
 
 end # module GraphiC
