@@ -1,10 +1,26 @@
 name = "GraphiC"
 uuid = "e8c69134-8c88-4c3e-9bf4-e2b26090c29f"
 authors = ["James A. Rome <jamesrome@gmail.com>"]
-version = "7.4.0"
+version = "7.4.1"
 
 [deps]
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
+[weakdeps]
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+
+[extensions]
+GraphiCMakieExt = "Makie"
+GraphiCPlotsExt = "Plots"
+
 [compat]
 julia = "1.6"
+Makie = "0.19, 0.20, 0.21, 0.22"
+Plots = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

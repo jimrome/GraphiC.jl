@@ -15,7 +15,7 @@ using GraphiC
         @test GraphiC.resolve_color(:red) == GraphiC.RED
         @test GraphiC.resolve_color(:blue) == GraphiC.BLUE
         @test GraphiC.resolve_color("red") == GraphiC.RED
-        @test GraphiC.resolve_color("#ff0000") == 0xff0000
+        @test GraphiC.resolve_color("#ff0000") == 0x01ff0000
         @test GraphiC.resolve_color(0x00ff00) == 0x00ff00
 
         @test GraphiC.resolve_ltype(:solid) == GraphiC.SOLID
@@ -234,6 +234,35 @@ using GraphiC
         @test occursin("GraphiC.PlotOutput", plain_str)
 
         rm(dummy_file, force=true)
+    end
+
+    @testset "Multi-Series plot! and savefig" begin
+        out_svg = joinpath(@__DIR__, "test_multiseries.svg")
+        rm(out_svg, force=true)
+
+        x = range(0.0, 10.0, length=50)
+        y1 = sin.(x)
+        y2 = cos.(x)
+
+        p = GraphiC.plot(x, y1; title="Multi-Series Test", xlabel="Time", ylabel="Val",
+                         label="Sine", color=:blue, ltype=:solid, thick=1.5, filename=out_svg)
+        @test length(p.series) == 1
+
+        GraphiC.plot!(p, x, y2; label="Cosine", color=:red, ltype=:dashed)
+        @test length(p.series) == 2
+        @test isfile(out_svg)
+
+        content = read(out_svg, String)
+        @test occursin("<svg", content)
+        @test occursin("</svg>", content)
+        @test length(content) > 1000
+
+        out2 = joinpath(@__DIR__, "test_savefig.svg")
+        GraphiC.savefig(p, out2)
+        @test isfile(out2)
+
+        rm(out_svg, force=true)
+        rm(out2, force=true)
     end
 
 end

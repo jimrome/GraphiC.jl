@@ -22,35 +22,124 @@
 
 ---
 
+## Installation
+
+`GraphiC.jl` can be installed directly from GitHub via the Julia package manager:
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/jimrome/GraphiC.jl")
+```
+
+Alternatively, from the Julia REPL interactive package mode (press `]`):
+
+```text
+pkg> add https://github.com/jimrome/GraphiC.jl
+```
+
+---
+
 ## Quickstart
 
-### 1. High-Level One-Line Plotting
+### 1. High-Level Multi-Series Plotting & Legends
 
 ```julia
 using GraphiC
 
-x = range(0.0, 4π, length=120)
-y = exp.(-0.25 .* x) .* sin.(x)
+x = range(0.0, 10.0, length=100)
 
-# Automatically sets up canvas, axes, scales, curves, and tightly crops SVG
-p = GraphiC.plot(x, y;
-    title="Damped Harmonic Oscillator",
-    xlabel="Time t (s)",
-    ylabel="Amplitude A(t)",
+# Create base figure with first curve, nice stepping, and grid
+fig = GraphiC.plot(x, sin.(x);
+    title="Harmonic Oscillator Waveforms",
+    xlabel="Time (s)",
+    ylabel="Amplitude",
+    label="sin(x)",
     color=:blue,
     thick=1.5,
-    ltype=:solid,
-    symbol=:circle,
-    grid=true,
-    filename="damped_oscillator.svg"
+    xlims=(0.0, 10.0),
+    ylims=(-1.2, 1.2),
+    grid=true
 )
+
+# Overlay second series
+GraphiC.plot!(fig, x, cos.(x);
+    label="cos(x)",
+    color=:red,
+    ltype=:dashed
+)
+
+# Overlay discrete scatter points
+GraphiC.scatter!(fig, [1.5, 3.0, 4.5, 6.0, 7.5], [0.99, -0.98, -0.21, 0.96, 0.35];
+    label="Sensor Data",
+    color=:magenta,
+    symbol=:circle
+)
+
+# Save crisp, standalone vector SVG
+GraphiC.savefig(fig, "harmonic_comparison.svg")
 ```
 
-In Jupyter, Pluto, or VS Code, `p` automatically renders the vector diagram inline.
+In Jupyter, Pluto, or VS Code, `fig` automatically renders the vector diagram inline.
 
 ---
 
-### 2. Procedural Scientific Plotting (C / Fortran Parity)
+### 2. Using GraphiC as a Plots.jl Backend
+
+`GraphiC.jl` includes an official zero-overhead Julia 1.9+ package extension (`ext/GraphiCPlotsExt.jl`), enabling the standard **Plots.jl** pipeline to delegate vector rendering to GraphiC's C engine:
+
+```julia
+using Plots
+import GraphiC: graphic   # or using GraphiC
+
+# Activate GraphiC's zero-latency vector C engine
+graphic()
+
+# Idiomatic Plots.jl pipeline
+x = range(0, 2π, length=100)
+p = plot(x, sin.(x), label="sin(x)", color=:blue, lw=2, title="Plots.jl using GraphiC")
+plot!(p, x, cos.(x), label="cos(x)", color=:red, linestyle=:dash)
+scatter!(p, [1.0, 2.0, 3.0, 4.0], [0.84, 0.91, 0.14, -0.75], label="Data", color=:green)
+
+# Generates native vector SVG with zero external dependencies
+savefig(p, "plots_graphic_backend.svg")
+```
+
+---
+
+### 3. Using GraphiC as a Makie.jl Vector Backend
+
+`GraphiC.jl` includes an official zero-overhead Julia 1.9+ package extension (`ext/GraphiCMakieExt.jl`), bringing GraphiC's ultra-clean vector rendering and **true 3D analytic hidden-line removal** to the **Makie.jl** ecosystem:
+
+```julia
+using Makie, GraphiC
+import GraphiC: graphic_makie
+
+# Activate GraphiC as the active Makie vector rendering engine
+graphic_makie()
+
+# 1. 2D Curves & Scatter with Makie
+fig = Figure()
+ax = Axis(fig[1, 1], title="Harmonic Waveforms", xlabel="Time (s)", ylabel="Amplitude")
+x = range(0, 2π, length=100)
+lines!(ax, x, sin.(x), color=:blue, linewidth=2.0, label="Sine")
+scatter!(ax, [1.0, 2.0, 3.0, 4.0], [0.84, 0.91, 0.14, -0.75], color=:red, marker=:circle, label="Data")
+
+# Save crisp, lightweight vector SVG with zero external Cairo dependencies
+save("makie_graphic_2d.svg", fig)
+
+# 2. 3D Perspective Surface with True Analytic Hidden-Line Removal
+fig3d = Figure()
+ax3d = Axis3(fig3d[1, 1], title="3D Bessel Surface")
+z = [sin(sqrt(x^2 + y^2)) for x in range(-5, 5, length=40), y in range(-5, 5, length=40)]
+surface!(ax3d, z)
+
+# Generates razor-sharp, publication-grade 3D vector SVG without rasterization artifacts
+save("makie_graphic_3d.svg", fig3d)
+```
+
+---
+
+### 4. Procedural Scientific Plotting (C / Fortran Parity)
 
 ```julia
 using GraphiC
@@ -195,3 +284,13 @@ julia/
     ├── bartest.jl
     └── piechart.jl
 ```
+
+---
+
+## License & Redistribution Terms
+
+`GraphiC.jl` and the underlying GraphiC engine are provided under the **GraphiC License Agreement** (see [LICENSE.txt](LICENSE.txt)).
+
+* **Personal & Research Use**: You are free to use, modify, and build upon GraphiC for your personal, academic, and internal research work.
+* **Commercial Redistribution Restriction**: GraphiC source code, binaries, object modules, and derivative executables may **not** be sold, bundled, or incorporated into commercial products or packages distributed or sold to third parties without an OEM redistribution license from **Scientific Endeavors Corporation**.
+* For commercial OEM licensing inquiries, please visit [https://jamesrome.com](https://jamesrome.com).

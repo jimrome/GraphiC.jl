@@ -10,7 +10,7 @@ using Libdl
 
 export
     # Core lifecycle
-    bgnplot, startplot, endplot, stopplot, get_svg_path,
+    bgnplot, startplot, endplot, stopplot, get_svg_path, graphic, graphic_makie, activate_makie,
     # Layout and Geometry
     page, area2d, physor, orel, metricunits, svgcrop,
     # Frame & Headings
@@ -44,9 +44,9 @@ export
     # Colormaps
     colormap_eval, colorkey_gradient,
     # High-Level Idiomatic API
-    plot, scatter, surface_plot, contour_plot,
-    # Display Type
-    PlotOutput,
+    plot, plot!, scatter, scatter!, surface_plot, contour_plot,
+    # Display & Figure Types
+    Figure, PlotOutput, current_figure, savefig,
     # Color Constants
     BLACK, BLUE, GREEN, CYAN, RED, MAGENTA, BROWN, WHITE,
     DRK_GRAY, LGT_BLUE, LGT_GREEN, LGT_CYAN, LGT_RED, LGT_MAGENTA,
@@ -155,10 +155,17 @@ function resolve_color(c)
         if haskey(COLOR_DICT, sc)
             return COLOR_DICT[sc]
         elseif startswith(c, "#")
-            return parse(Int, c[2:end], base=16)
+            val = parse(Int, c[2:end], base=16)
+            return 0x01000000 | val
         elseif startswith(c, "0x") || startswith(c, "0X")
-            return parse(Int, c[3:end], base=16)
+            val = parse(Int, c[3:end], base=16)
+            return val > 447 ? (0x01000000 | (val & 0x00FFFFFF)) : val
         end
+    elseif hasproperty(c, :r) && hasproperty(c, :g) && hasproperty(c, :b)
+        r = clamp(round(Int, Float64(c.r) * 255), 0, 255)
+        g = clamp(round(Int, Float64(c.g) * 255), 0, 255)
+        b = clamp(round(Int, Float64(c.b) * 255), 0, 255)
+        return 0x01000000 | (r << 16) | (g << 8) | b
     end
     return BLACK
 end
@@ -229,6 +236,8 @@ function _find_library()
     search_dirs = [
         joinpath(pkg_dir, "lib"),
         joinpath(pkg_dir, "..", "lib"),
+        joinpath(pkg_dir, "..", "GraphiC-2D-Community", "lib"),
+        joinpath(pkg_dir, "..", "GraphiC", "lib"),
         joinpath(pkg_dir, "..", "build"),
         "/usr/local/lib",
         "/opt/homebrew/lib"
@@ -249,11 +258,15 @@ end
 function _get_handle()
     if LIB_HANDLE[] == C_NULL
         path = _find_library()
-        handle = Libdl.dlopen(path)
-        if handle == C_NULL
-            error("Could not load GraphiC dynamic library from: $path")
+        try
+            handle = Libdl.dlopen(path)
+            LIB_HANDLE[] = handle
+        catch err
+            error("Could not load GraphiC dynamic library ('$path'): $(err).\n" *
+                  "Please ensure libgraphic is built, or download the free GraphiC 2D Community Edition " *
+                  "(https://jamesrome.com/download/release/GraphiC_2D_Community.zip) and set:\n" *
+                  "    ENV[\"GRAPHIC_LIB_PATH\"] = \"/path/to/libgraphic.dylib\" (or .so / .dll)")
         end
-        LIB_HANDLE[] = handle
     end
     return LIB_HANDLE[]
 end
@@ -261,6 +274,22 @@ end
 function __init__()
     if !haskey(ENV, "GPC_NONINTERACTIVE")
         ENV["GPC_NONINTERACTIVE"] = "1"
+    end
+    if !haskey(ENV, "GRAPHIC")
+        pkg_dir = dirname(dirname(@__FILE__))
+        candidate_dirs = [
+            joinpath(pkg_dir, "..", "GraphiC-2D-Community"),
+            joinpath(pkg_dir, "..", "GraphiC"),
+            joinpath(pkg_dir, "fonts"),
+            joinpath(pkg_dir, "share"),
+            "/usr/local/share/graphic"
+        ]
+        for d in candidate_dirs
+            if isfile(joinpath(d, "Swiss.ttf")) || isfile(joinpath(d, "Messages.dat"))
+                ENV["GRAPHIC"] = normpath(d)
+                break
+            end
+        end
     end
     try
         _get_handle()
@@ -271,20 +300,84 @@ end
 # ==============================================================================
 # Rich Display Wrapper for Notebooks & VS Code
 # ==============================================================================
-struct PlotOutput
-    path::String
+mutable struct Series2D
+    x::Vector{Float64}
+    y::Vector{Float64}
+    label::String
+    color::Int
+    ltype::Int
+    thick::Float64
+    symbol::Union{Nothing, Int}
+    seriestype::Symbol
 end
 
-function Base.show(io::IO, ::MIME"image/svg+xml", p::PlotOutput)
-    if isfile(p.path)
-        write(io, read(p.path, String))
+mutable struct Figure
+    series::Vector{Series2D}
+    title::String
+    xlabel::String
+    ylabel::String
+    grid::Bool
+    width::Float64
+    height::Float64
+    filename::String
+    crop::Bool
+    margin::Float64
+    xlims::Union{Nothing, Tuple{Float64, Float64}}
+    ylims::Union{Nothing, Tuple{Float64, Float64}}
+    legend::Bool
+    rendered_path::String
+end
+
+Figure(path::AbstractString) = Figure(Series2D[], "", "", "", false, 8.0, 6.0, String(path), true, 0.25, nothing, nothing, false, String(path))
+
+const PlotOutput = Figure
+
+function Base.getproperty(fig::Figure, sym::Symbol)
+    if sym === :path
+        return getfield(fig, :rendered_path)
+    end
+    return getfield(fig, sym)
+end
+
+function Base.show(io::IO, ::MIME"image/svg+xml", fig::Figure)
+    if isfile(fig.rendered_path)
+        write(io, read(fig.rendered_path, String))
     else
-        write(io, "<svg xmlns=\"http://www.w3.org/2000/svg\"><text x=\"10\" y=\"20\">File not found: $(p.path)</text></svg>")
+        write(io, "<svg xmlns=\"http://www.w3.org/2000/svg\"><text x=\"10\" y=\"20\">File not found: $(fig.rendered_path)</text></svg>")
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", p::PlotOutput)
-    println(io, "GraphiC.PlotOutput(\"$(p.path)\")")
+function Base.show(io::IO, ::MIME"text/plain", fig::Figure)
+    println(io, "GraphiC.PlotOutput(\"$(fig.rendered_path)\")")
+end
+
+const CURRENT_FIGURE = Ref{Union{Nothing, Figure}}(nothing)
+current_figure() = CURRENT_FIGURE[]
+
+"""
+    graphic(; kwargs...)
+
+Plots.jl backend switcher function. When both `Plots` and `GraphiC` are loaded,
+calling `graphic()` sets GraphiC as the active rendering engine in Plots.jl.
+"""
+function graphic(args...; kwargs...)
+    error("`graphic()` requires Plots.jl to be loaded first. Please run `using Plots` before calling `graphic()`.")
+end
+
+"""
+    graphic_makie(; kwargs...)
+    activate_makie(; kwargs...)
+
+Makie.jl backend switcher function. When both `Makie` and `GraphiC` are loaded,
+calling `graphic_makie()` or `activate_makie()` activates GraphiC as the high-performance
+vector rendering engine for Makie Figures and Scenes.
+"""
+function graphic_makie(args...; kwargs...)
+    error("`graphic_makie()` requires Makie.jl to be loaded first. Please run `using Makie` (or `CairoMakie`/`GLMakie`) before calling `graphic_makie()`.")
+end
+
+function activate_makie(args...; kwargs...)
+    error("`activate_makie()` requires Makie.jl to be loaded first. Please run `using Makie` (or `CairoMakie`/`GLMakie`) before calling `activate_makie()`.")
 end
 
 const CURRENT_OUTPUT = Ref{String}("")
@@ -321,7 +414,7 @@ function startplot(bgcolor::Integer=WHITE)
     ccall(fn_ptr, Cvoid, (Cint,), Cint(bgcolor))
 end
 
-"""Conclude the current plot. Returns a `PlotOutput` object for rich display."""
+"""Conclude the current plot. Returns a `Figure` / `PlotOutput` object for rich display."""
 function endplot()
     fn_ptr = Libdl.dlsym(_get_handle(), :endplot)
     ccall(fn_ptr, Cint, ())
@@ -329,7 +422,13 @@ function endplot()
     if !isempty(path)
         CURRENT_OUTPUT[] = path
     end
-    return PlotOutput(CURRENT_OUTPUT[])
+    fig = current_figure()
+    if fig !== nothing
+        fig.rendered_path = CURRENT_OUTPUT[]
+        return fig
+    else
+        return Figure(Series2D[], "", "", "", false, 8.0, 6.0, CURRENT_OUTPUT[], true, 0.25, nothing, nothing, false, CURRENT_OUTPUT[])
+    end
 end
 
 """Terminate the GraphiC session, closing all file drivers."""
@@ -480,15 +579,30 @@ function bcolor(c)
     ccall(fn_ptr, Cvoid, (Cint,), Cint(clr))
 end
 
-"""Set line dash pattern scale factor."""
-function dashf(factor::Real)
+"""Set line dash pattern (1=solid, 2=dotted, 3=dashed, 4=long dash, 5=chain dash, etc.)."""
+function dashf(type::Integer)
     fn_ptr = Libdl.dlsym(_get_handle(), :dashf)
-    ccall(fn_ptr, Cvoid, (Cfloat,), Cfloat(factor))
+    ccall(fn_ptr, Cvoid, (Cint,), Cint(type))
 end
 
-"""Set line style (SOLID=0, DOTTED=1, DASHED=2, LONG_DASH=3, CHAIN_DASH=4, or :solid, :dashed, etc.)."""
+"""Set line style (:solid, :dashed, :dotted, or integer 1-9)."""
 function ltype(t)
-    dashf(Float32(resolve_ltype(t)))
+    pattern = if t isa Integer
+        t <= 0 ? 1 : Int(t)
+    elseif t in (:solid, "solid")
+        1
+    elseif t in (:dotted, :dot, "dotted", "dot")
+        2
+    elseif t in (:dashed, :dash, "dashed", "dash")
+        3
+    elseif t in (:long_dash, :longdash, "longdash")
+        4
+    elseif t in (:chain_dash, :chaindash, :dashdot, "dashdot")
+        5
+    else
+        1
+    end
+    dashf(pattern)
 end
 
 """Set line width / stroke thickness in inches."""
@@ -1053,84 +1167,108 @@ function _nice_step(range_val::Real, n_target::Integer=5)
     return step * mag
 end
 
-"""
-    plot(x, y; kwargs...)
+function _resolve_line_style(s)
+    if s isa Integer
+        return s <= 0 ? 1 : Int(s)
+    elseif s in (:solid, "solid")
+        return 1
+    elseif s in (:dotted, :dot, "dotted", "dot")
+        return 2
+    elseif s in (:dashed, :dash, "dashed", "dash")
+        return 3
+    elseif s in (:long_dash, :longdash, "longdash")
+        return 4
+    elseif s in (:chain_dash, :chaindash, :dashdot, "dashdot")
+        return 5
+    end
+    return 1
+end
 
-High-level one-line plotting for Julia.
-Automatically configures page layout, scales, axes, labels, styling, and crops the SVG.
-Returns a `PlotOutput` object that renders inline in Jupyter / Pluto / VS Code.
-
-# Keyword Arguments:
-- `title::String`: Plot heading
-- `xlabel::String`: Horizontal axis label
-- `ylabel::String`: Vertical axis label
-- `color`: Line/marker color (e.g. :blue, :red, GraphiC.BLUE, or 0xRRGGBB)
-- `ltype`: Line pattern (:solid, :dashed, :dotted, etc.)
-- `thick::Real`: Stroke width (default 1.0)
-- `symbol`: Marker symbol (:circle, :square, :diamond, etc., or nothing)
-- `width::Real`, `height::Real`: Page dimensions in inches (default 8.0 x 6.0)
-- `filename::String`: Output SVG path (default "graphic_plot.svg")
-- `crop::Bool`: Auto-crop SVG tightly with margin (default true)
-- `grid::Bool`: Draw Cartesian grid (default false)
-"""
-function plot(x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
-              title::AbstractString="", xlabel::AbstractString="", ylabel::AbstractString="",
-              color=BLACK, ltype=SOLID, thick::Real=1.0, symbol=nothing,
-              width::Real=8.0, height::Real=6.0, filename::AbstractString="graphic_plot.svg",
-              crop::Bool=true, margin::Real=0.25, grid::Bool=false,
-              xmin=nothing, xmax=nothing, xstep=nothing,
-              ymin=nothing, ymax=nothing, ystep=nothing)
-    n = min(length(x), length(y))
-    if n == 0
-        error("Cannot plot empty vectors")
+function render!(fig::Figure)
+    if isempty(fig.series)
+        return fig
     end
 
-    # Auto-scaling
-    x_min = xmin === nothing ? minimum(x[1:n]) : Float64(xmin)
-    x_max = xmax === nothing ? maximum(x[1:n]) : Float64(xmax)
+    if fig.xlims !== nothing
+        x_min, x_max = fig.xlims
+    else
+        x_min = minimum(minimum(s.x) for s in fig.series)
+        x_max = maximum(maximum(s.x) for s in fig.series)
+    end
     if x_min == x_max
         x_min -= 1.0
         x_max += 1.0
     end
-    x_step = xstep === nothing ? _nice_step(x_max - x_min, 5) : Float64(xstep)
+    x_step = _nice_step(x_max - x_min, 5)
 
-    y_min = ymin === nothing ? minimum(y[1:n]) : Float64(ymin)
-    y_max = ymax === nothing ? maximum(y[1:n]) : Float64(ymax)
+    if fig.ylims !== nothing
+        y_min, y_max = fig.ylims
+    else
+        y_min = minimum(minimum(s.y) for s in fig.series)
+        y_max = maximum(maximum(s.y) for s in fig.series)
+    end
     if y_min == y_max
         y_min -= 1.0
         y_max += 1.0
     end
-    y_step = ystep === nothing ? _nice_step(y_max - y_min, 5) : Float64(ystep)
+    y_step = _nice_step(y_max - y_min, 5)
 
-    bgnplot(1, 'S', filename)
+    target_file = isempty(fig.filename) ? "graphic_plot.svg" : fig.filename
+
+    bgnplot(1, UInt8('S'), target_file)
     try
-        page(width, height)
+        page(fig.width, fig.height)
         startplot(WHITE)
-        if crop
-            svgcrop(margin)
+        dashf(1)
+        if fig.crop
+            svgcrop(fig.margin)
         end
-        area2d(width * 0.75, height * 0.72)
-        physor(width * 0.15, height * 0.14)
+        area2d(fig.width * 0.75, fig.height * 0.72)
+        physor(fig.width * 0.15, fig.height * 0.14)
         box()
 
         graf("%g", x_min, x_step, x_max, "%g", y_min, y_step, y_max)
-        if grid
+        if fig.grid
             GraphiC.grid(1)
         end
-        GraphiC.title(title, xlabel, ylabel)
+        GraphiC.title(fig.title, fig.xlabel, fig.ylabel)
 
-        clr = resolve_color(color)
-        GraphiC.color(clr)
-        tiline(thick)
+        # Plot each series
+        for s in fig.series
+            clr = s.color
+            GraphiC.color(clr)
+            tiline(s.thick)
+            n = length(s.x)
 
-        lt = resolve_ltype(ltype)
-        curve(x, y, n, lt)
+            if s.seriestype === :line
+                dashf(s.ltype)
+                curve(s.x, s.y, n, 0)
+            end
 
-        if symbol !== nothing
-            sym_id = resolve_symbol(symbol)
-            sympick(sym_id)
-            for i in 1:n
-                GraphiC.symbol(x[i], y[i], sym_id)
+            if s.symbol !== nothing
+                sympick(s.symbol)
+                for i in 1:n
+                    GraphiC.symbol(s.x[i], s.y[i], s.symbol)
+                end
+            end
+        end
+
+        # Legend
+        if fig.legend
+            labeled = [s for s in fig.series if !isempty(s.label)]
+            if !isempty(labeled)
+                leg_x = fig.width * 0.55
+                leg_y = fig.height * 0.76
+                legpos(length(labeled), leg_x, leg_y, 1)
+                for s in labeled
+                    if s.seriestype === :line
+                        legend(1, s.label, s.ltype, 0.14, s.color)
+                    elseif s.symbol !== nothing
+                        legend(0, s.label, s.symbol, 0.14, s.color)
+                    else
+                        legend(1, s.label, s.ltype, 0.14, s.color)
+                    end
+                end
             end
         end
     finally
@@ -1138,18 +1276,165 @@ function plot(x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
         stopplot()
     end
 
-    return PlotOutput(CURRENT_OUTPUT[])
+    fig.rendered_path = get_svg_path()
+    if isempty(fig.rendered_path)
+        fig.rendered_path = target_file
+    end
+    CURRENT_OUTPUT[] = fig.rendered_path
+    return fig
+end
+
+"""
+    plot(x, y; kwargs...)
+
+High-level, zero-latency vector plotting for Julia with native SVG output.
+Automatically configures page layout, scales, axes, labels, styling, and crops the SVG.
+Returns a `Figure` / `PlotOutput` object that renders inline in Jupyter / Pluto / VS Code.
+
+# Keyword Arguments:
+- `title::String`: Plot heading
+- `xlabel::String`: Horizontal axis label
+- `ylabel::String`: Vertical axis label
+- `label::String`: Series legend label
+- `color`: Line/marker color (e.g. :blue, :red, GraphiC.BLUE, or 0xRRGGBB)
+- `ltype`: Line pattern (:solid, :dashed, :dotted, etc.)
+- `thick::Real` (or `lw`, `linewidth`): Stroke width in inches (default 1.0)
+- `symbol` (or `marker`, `markershape`): Marker symbol (:circle, :square, :diamond, etc.)
+- `width::Real`, `height::Real`: Page dimensions in inches (default 8.0 x 6.0)
+- `filename::String`: Output SVG path (default "graphic_plot.svg")
+- `crop::Bool`: Auto-crop SVG tightly with margin (default true)
+- `grid::Bool`: Draw Cartesian grid (default false)
+- `xlims`, `ylims`: Axis bounds tuples `(min, max)`
+"""
+function plot(x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+              title::AbstractString="", xlabel::AbstractString="", ylabel::AbstractString="",
+              label::AbstractString="", color=BLACK, ltype=:solid, thick::Real=1.0,
+              lw::Union{Nothing, Real}=nothing, linewidth::Union{Nothing, Real}=nothing,
+              ls=nothing, linestyle=nothing,
+              symbol=nothing, marker=nothing, markershape=nothing,
+              width::Real=8.0, height::Real=6.0, filename::AbstractString="graphic_plot.svg",
+              crop::Bool=true, margin::Real=0.25, grid::Bool=false,
+              xlims=nothing, ylims=nothing,
+              xmin=nothing, xmax=nothing, xstep=nothing,
+              ymin=nothing, ymax=nothing, ystep=nothing,
+              legend::Union{Bool, Nothing}=nothing,
+              seriestype::Symbol=:line)
+
+    n = min(length(x), length(y))
+    if n == 0
+        error("Cannot plot empty vectors")
+    end
+
+    line_w = linewidth !== nothing ? Float64(linewidth) : (lw !== nothing ? Float64(lw) : Float64(thick))
+    line_s = linestyle !== nothing ? linestyle : (ls !== nothing ? ls : ltype)
+    mark = markershape !== nothing ? markershape : (marker !== nothing ? marker : symbol)
+
+    mapped_ltype = _resolve_line_style(line_s)
+    mapped_sym = mark !== nothing ? resolve_symbol(mark) : nothing
+    mapped_color = resolve_color(color)
+
+    xl = xlims !== nothing ? (Float64(xlims[1]), Float64(xlims[2])) : (xmin !== nothing && xmax !== nothing ? (Float64(xmin), Float64(xmax)) : nothing)
+    yl = ylims !== nothing ? (Float64(ylims[1]), Float64(ylims[2])) : (ymin !== nothing && ymax !== nothing ? (Float64(ymin), Float64(ymax)) : nothing)
+
+    s = Series2D(collect(Float64, x[1:n]), collect(Float64, y[1:n]), String(label),
+                 mapped_color, mapped_ltype, line_w, mapped_sym, seriestype)
+
+    leg_flag = legend !== nothing ? Bool(legend) : !isempty(label)
+
+    fig = Figure([s], String(title), String(xlabel), String(ylabel), grid,
+                 Float64(width), Float64(height), String(filename), crop,
+                 Float64(margin), xl, yl, leg_flag, "")
+
+    CURRENT_FIGURE[] = fig
+    render!(fig)
+    return fig
+end
+
+"""
+    plot!(fig::Figure, x, y; kwargs...)
+    plot!(x, y; kwargs...)
+
+Add a curve or series to an existing plot. If `fig` is omitted, adds to the current active plot.
+"""
+function plot!(fig::Figure, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+               label::AbstractString="", color=nothing, ltype=:solid, thick::Real=1.0,
+               lw::Union{Nothing, Real}=nothing, linewidth::Union{Nothing, Real}=nothing,
+               ls=nothing, linestyle=nothing,
+               symbol=nothing, marker=nothing, markershape=nothing,
+               seriestype::Symbol=:line, kwargs...)
+    n = min(length(x), length(y))
+    if n == 0
+        error("Cannot plot empty vectors")
+    end
+
+    auto_colors = [BLUE, RED, GREEN, MAGENTA, CYAN, BROWN, YELLOW, BLACK]
+    clr = color !== nothing ? resolve_color(color) : auto_colors[mod1(length(fig.series) + 1, length(auto_colors))]
+
+    line_w = linewidth !== nothing ? Float64(linewidth) : (lw !== nothing ? Float64(lw) : Float64(thick))
+    line_s = linestyle !== nothing ? linestyle : (ls !== nothing ? ls : ltype)
+    mark = markershape !== nothing ? markershape : (marker !== nothing ? marker : symbol)
+
+    mapped_ltype = _resolve_line_style(line_s)
+    mapped_sym = mark !== nothing ? resolve_symbol(mark) : nothing
+
+    s = Series2D(collect(Float64, x[1:n]), collect(Float64, y[1:n]), String(label),
+                 clr, mapped_ltype, line_w, mapped_sym, seriestype)
+    push!(fig.series, s)
+
+    if !isempty(label)
+        fig.legend = true
+    end
+
+    render!(fig)
+    return fig
+end
+
+function plot!(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; kwargs...)
+    fig = current_figure()
+    if fig === nothing
+        return plot(x, y; kwargs...)
+    end
+    return plot!(fig, x, y; kwargs...)
 end
 
 """
     scatter(x, y; kwargs...)
+    scatter!(x, y; kwargs...)
 
-High-level scatter plot for Julia. Equivalent to `plot(x, y; ltype=-1, symbol=symbol, ...)`.
+High-level scatter plot for Julia. Equivalent to `plot(x, y; seriestype=:scatter, symbol=:circle, ...)`.
 """
 function scatter(x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
-                 symbol=:circle, color=:blue, kwargs...)
-    return plot(x, y; symbol=symbol, color=color, ltype=-1, kwargs...)
+                 symbol=:circle, marker=nothing, markershape=nothing, color=:blue, kwargs...)
+    mark = markershape !== nothing ? markershape : (marker !== nothing ? marker : symbol)
+    return plot(x, y; seriestype=:scatter, symbol=mark, color=color, kwargs...)
 end
+
+function scatter!(fig::Figure, x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+                  symbol=:circle, marker=nothing, markershape=nothing, color=nothing, kwargs...)
+    mark = markershape !== nothing ? markershape : (marker !== nothing ? marker : symbol)
+    return plot!(fig, x, y; seriestype=:scatter, symbol=mark, color=color, kwargs...)
+end
+
+function scatter!(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; kwargs...)
+    fig = current_figure()
+    if fig === nothing
+        return scatter(x, y; kwargs...)
+    end
+    return scatter!(fig, x, y; kwargs...)
+end
+
+"""
+    savefig(fig::Figure, filename::AbstractString)
+    savefig(filename::AbstractString)
+
+Save the specified figure (or current active figure) to the target vector SVG filename.
+"""
+function savefig(fig::Figure, filename::AbstractString)
+    fig.filename = String(filename)
+    render!(fig)
+    return fig
+end
+savefig(filename::AbstractString) = savefig(current_figure(), filename)
 
 """
     surface_plot(z; kwargs...)
