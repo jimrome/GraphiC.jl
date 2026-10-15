@@ -127,15 +127,18 @@ scatter!(ax, [1.0, 2.0, 3.0, 4.0], [0.84, 0.91, 0.14, -0.75], color=:red, marker
 # Save crisp, lightweight vector SVG with zero external Cairo dependencies
 save("makie_graphic_2d.svg", fig)
 
-# 2. 3D Perspective Surface with True Analytic Hidden-Line Removal
+# 2. 3D Perspective Surface with True Analytic Hidden-Line Removal (GraphiC Professional)
 fig3d = Figure()
 ax3d = Axis3(fig3d[1, 1], title="3D Bessel Surface")
 z = [sin(sqrt(x^2 + y^2)) for x in range(-5, 5, length=40), y in range(-5, 5, length=40)]
 surface!(ax3d, z)
 
 # Generates razor-sharp, publication-grade 3D vector SVG without rasterization artifacts
+# (Requires GraphiC Professional; free Community edition supports all 2D plotting)
 save("makie_graphic_3d.svg", fig3d)
 ```
+
+*(Note: The free 2D Community edition bundled in the repo covers full 2D lines, multi-series curves, scatter, bar charts, and vector SVG output. 3D perspective surfaces with analytic hidden-line removal and 2D contour maps are features of **GraphiC Professional** available at [https://jamesrome.com](https://jamesrome.com)).*
 
 ---
 
